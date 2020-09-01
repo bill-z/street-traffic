@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.vscode
+debug.log
+images
+*.mp4
