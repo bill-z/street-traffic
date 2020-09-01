@@ -69,61 +69,46 @@ def crop (image):
     return image[y:y+h, x:x+w]
 
 # -----------------------------------------------------------------------------
-def filter_mask (mask, kernel4, kernel8):
-    # # I want some pretty drastic closing
-    # kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (20, 20))
-    # kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (8, 8))
+def filter_mask (mask):
+    # if not kernels:
+        # I want some pretty drastic 
+    kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4, 4))
+    kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (20, 8))
     # kernel_dilate = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-
-    # # Remove noise
-    # opening = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_open)
-    # # Close holes within contours
-    # # closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel_close)
-    # # Merge adjacent blobs
-    # # dilation = cv2.dilate(closing, kernel_dilate, iterations = 2)
-
-    # return dilation
-
-    #----
-    # kernel3 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    #TODO - don't do this every time!!
-    # kernel4 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4, 4))
-    # kernel8 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (8, 8))
-    # kernel20 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (20, 20))
+    # kernels = True
 
     # Remove noise
-    opening = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel4)
-    # dilation = cv2.dilate(opening, kernel8, iterations = 2)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_open)
+
     # Close holes within contours
-    closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel8)
+    # mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close)
 
-    return closing
-    #----
-    # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    mask = cv2.dilate(mask, kernel_close, iterations = 1)
+    return mask
 
-    # # Fill any small holes
-    # closing = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-    # # Remove noise
-    # opening = cv2.morphologyEx(closing, cv2.MORPH_OPEN, kernel)
+# -----------------------------------------------------------------------------
+def process_mask(frame, bg_subtractor):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    # # Dilate to merge adjacent blobs
-    # dilation = cv2.dilate(opening, kernel, iterations = 2)
+    mask = bg_subtractor.apply(frame)
+    mask = filter_mask(mask)
 
-    # return dilation
+    return mask
 
 # -----------------------------------------------------------------------------
 def get_centroid (x, y, w, h):
     x1 = w // 2
-    y1 = h // 2
+    y1 = h  # NOT centered -- using bottom edge
 
     return(x+x1, y+y1)
 
 # -----------------------------------------------------------------------------
 def detect_vehicles (mask):
-    MIN_CONTOUR_WIDTH = 50
+    MIN_CONTOUR_WIDTH = 80
     MIN_CONTOUR_HEIGHT = 30
 
-    contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     matches = []
 
@@ -141,15 +126,6 @@ def detect_vehicles (mask):
         matches.append( ((x,y,w,h), centroid) )
 
     return matches
-
-# -----------------------------------------------------------------------------
-def process_mask(frame, bg_subtractor, kernel4, kernel8):
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-    mask = bg_subtractor.apply(frame)
-    mask = filter_mask(mask, kernel4, kernel8)
-
-    return mask
 
 # -----------------------------------------------------------------------------
 def draw_matches(matches, frame, mask):
@@ -191,9 +167,6 @@ def main ():
 
     cv2.namedWindow('Source Image')
 
-    kernel4 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4, 4))
-    kernel8 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (8, 8))
-
     frame_number = -1
 
     while True:
@@ -206,7 +179,7 @@ def main ():
         # crop to region of interest
         cropped = crop(frame)
 
-        mask = process_mask(cropped, bg_subtractor, kernel4, kernel8)
+        mask = process_mask(cropped, bg_subtractor)
 
         matches = detect_vehicles(mask)
 
