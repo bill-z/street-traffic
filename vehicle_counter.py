@@ -32,114 +32,51 @@ class Vehicle (object):
 			cv2.circle(output_image, point, 2, self.color, -1)
 			cv2.polylines(output_image, [np.int32(self.positions)], False, self.color, 1)
 
-		if self.speed:
-			cv2.putText(output_image, ("%1.2f" % self.speed), self.last_position, cv2.FONT_HERSHEY_PLAIN, 0.7, (127, 255, 255), 1)
-		else:
-			cv2.putText(output_image, ("%df" % self.id), self.last_position, cv2.FONT_HERSHEY_PLAIN, 0.7, self.color, 1)
+		x, y = self.last_position
+		cv2.putText(output_image, ("%3.2f" % self.speed), (x, y-20), cv2.FONT_HERSHEY_PLAIN, 1.0, self.color, 1)
+		cv2.putText(output_image, ("[%d]" % self.id), (x, y+20), cv2.FONT_HERSHEY_PLAIN, 1.0, self.color, 1)
 			
 
-	def log(self, log):
-		log.debug("V[%d] pos: %d %d start: %d since: %d", 
+	def log(self, log, frame_number):
+		log.debug("%04d [%d] pos: %d %d speed: %3.2f start: %d since: %d", 
+			frame_number,
 			self.id, 
 			self.last_position[0],
 			self.last_position[1],
+			self.speed,
 			self.start_frame,
 			self.frames_since_seen)
 
 class VehicleCounter (object):
-	def __init__(self, shape, road, fps, log, samples=0):
-		self.height, self.width = shape
-		self.divider = road['divider']
-		self.is_horizontal = road['divider_horizontal']
-		self.pass_side = road['divider_pass_side']
-		self.vector_angle_min = road['vector_angle_min']
-		self.vector_angle_max = road['vector_angle_max']
+	def __init__(self, width, height, fps, log):
+		self.width = width
+		self.height = height
+		self.fps = fps
 		self.log = log
 
 		self.vehicles = []
 		self.next_vehicle_id = 0
 		self.vehicle_count = 0
-
-		# self.max_unseen_frames = 10
 		self.max_unseen_frames = 30
 
-		self.sample_num = samples
-
-		if samples == 0:
-			self.log.debug('DISTANCE MODE')
-			self.distance = road['distance']
-			self.fps = fps
-		else:
-			self.log.debug('AVERAGE MODE')
-			self.samples = []
-			self.average_speed = -1
-			self.average_threshold = 0.3
-
-			self.average_distance = -1
-			self.distances = []
-
 	@staticmethod
-	def get_vector (a, b):
+	def get_distance (a, b):
 		dx = float(b[0] - a[0])
 		dy = float(b[1] - a[1])
+		return math.sqrt(dx**2 + dy**2)
 
-		distance = math.sqrt(dx**2 + dy**2)
-
-		if dy > 0:
-			angle = math.degrees(math.atan(-dx/dy))
-		elif dy == 0:
-			if dx < 0:
-				angle = 90.0
-			elif dx > 0:
-				angle = -90.0
-			else:
-				angle = 0.0
-		else:
-			if dx < 0:
-				angle = 180 - math.degrees(math.atan(dx/dy))
-			elif dx > 0:
-				angle = -180 - math.degrees(math.atan(dx/dy))
-			else:
-				angle = 180.0
-
-		return distance, angle
 
 	@staticmethod
-	def is_valid_vector (a, angle_min, angle_max):
-		# TODO!
-		distance, angle = a
+	def is_valid_distance (distance):
 		return distance <= 300
-		# # TODO: This also needs to be customized!
-		# return (distance <= 200 and angle > angle_min and angle < angle_max)
-
-	# This method should be customizeable/depend on external settings (i.e. horizontal vs vertical divider)
-	# see explanation for pass_side in settings.json
-	# def is_past_divider (self, centroid):
-	# 	x, y = centroid
-
-	# 	if self.is_horizontal:
-	# 		if self.pass_side == -1:
-	# 			return y < self.divider
-	# 		else:
-	# 			return y > self.divider
-
-	# 	else:
-	# 		if self.pass_side == -1:
-	# 			return x < self.divider
-	# 		else:
-	# 			return x > self.divider
-
 
 	def update_vehicle (self, vehicle, matches):
 		# Find if any of the matches fits this vehicle
 		for i, match in enumerate(matches):
 			contour, centroid = match
-			
-			vector = self.get_vector(vehicle.last_position, centroid)
-			if self.is_valid_vector(vector, self.vector_angle_min, self.vector_angle_max):
-				print('Angle: %s' % vector[1])
+			distance = self.get_distance(vehicle.last_position, centroid)
+			if self.is_valid_distance(distance):
 				vehicle.add_position(centroid, contour)
-
 				return i
 
 		# No matches fit
@@ -181,64 +118,25 @@ class VehicleCounter (object):
 
 		# Count any uncounted vehicles that are past the divider
 		for vehicle in self.vehicles:
-			#if not vehicle.counted and self.is_past_divider(vehicle.last_position):
-			#if not vehicle.counted:
-			if self.sample_num == 0:
-				# Distance mode
-				distance = self.get_vector(vehicle.last_position, vehicle.positions[0])[0] / 10 / 5280  # wild guess of 10px/ft, 5280 ft/mi)
+			pixels = self.get_distance(vehicle.last_position, vehicle.positions[0])
+			miles = pixels / 10 / 5280  # wild guess of 10px/ft, 5280 ft/mi)
 
-				# Running average of first 20-100 cars, use that as a benchmark (zeroing out the scale)
-				time_alive = (frame_number - vehicle.start_frame)/self.fps
-				# Convert to hours
-				time_alive = time_alive / 60 / 60
+			frames = (frame_number - vehicle.start_frame)
+			seconds = frames/self.fps
+			# Convert to hours
+			hours = seconds / 60 / 60
 
-				# MPH
-				vehicle.speed = 0 if time_alive == 0 else distance / time_alive
+			# MPH
+			vehicle.speed = 0 if hours == 0 else miles / hours
 
-				self.log.debug("speed: %f dist: %d time: %f", vehicle.speed, distance, time_alive)
-			
-			else:
-				# Average mode
-				distance = self.get_vector(vehicle.last_position, vehicle.positions[0])[0] # We don't need the angle
-
-				speed = distance / (frame_number - vehicle.start_frame)
-				print(f"SPEED: {speed}")		
-
-				if len(self.samples) < self.sample_num:
-					# Add to samples
-
-					self.samples.append(speed)
-					self.distances.append(distance)
-
-					# Should we take the average now?
-					if len(self.samples) == self.sample_num:
-						self.average_speed = sum(self.samples)/len(self.samples)
-						self.average_distance = sum(self.distances)/len(self.distances)
-
-						print(f"AVERAGE SPEED: {self.average_speed}")
-
-				else:
-					# Throw it out if the distance is bizarrely long/short
-					# if abs(distance-self.average_distance)/self.average_distance > 0.3:
-					# 	print('FREAK DISTANCE DETECTED!')
-					# 	continue
-
-					speed_diff = (speed-self.average_speed)/self.average_speed
-					vehicle.speed = speed_diff # Assuming average speed translates to 70 mph!
-
-					if speed_diff >= self.average_threshold:
-						print(f"{vehicle.id} is SPEEDING: {speed_diff}")
-
-				self.vehicle_count += 1
-				vehicle.counted = True
-			vehicle.log(self.log)
+			vehicle.log(self.log, frame_number)
 
 		# Draw the vehicles (optional)
 		if output_image is not None:
 			for vehicle in self.vehicles:
 				vehicle.draw(output_image)
 
-			cv2.putText(output_image, ("%02d" % self.vehicle_count), (0, 0), cv2.FONT_HERSHEY_PLAIN, 1.0, (127, 255, 255), 1)
+			# cv2.putText(output_image, ("%02d" % self.vehicle_count), (0, 0), cv2.FONT_HERSHEY_PLAIN, 1.0, (127, 255, 255), 1)
 
 		# Remove vehicles that have not been seen in a while
 		removed = [v.id for v in self.vehicles
@@ -249,7 +147,7 @@ class VehicleCounter (object):
 			self.log.debug('Removed vehicle %d', carid)
 
 		# print('Count updated')
-		if len(self.vehicles) > 0:
-			self.log.debug("%d vehicles", len(self.vehicles))
+		# if len(self.vehicles) > 0:
+		# 	self.log.debug("%d vehicles", len(self.vehicles))
 
 		return len(self.vehicles)
