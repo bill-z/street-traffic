@@ -121,10 +121,16 @@ def load_cropped ():
 # -----------------------------------------------------------------------------
 # Remove cropped regions from frame
 def crop (image):
-    cropped = image.copy()
+    # cropped = image.copy()
 
-    for rect in ref_rects:
-        cropped[ rect[0][1]:rect[1][1], rect[0][0]:rect[1][0] ] = 0
+    # for rect in ref_rects:
+    #     cropped[ rect[0][1]:rect[1][1], rect[0][0]:rect[1][0] ] = 0
+    #TODO define these "better"
+    x = 0
+    y = 240
+    w = 1080
+    h = 240
+    cropped = image[y:y+h, x:x+w]
 
     return cropped
 
@@ -215,7 +221,7 @@ def process_mask(frame, bg_subtractor, kernel4, kernel8):
     return mask
 
 # -----------------------------------------------------------------------------
-def draw_matches(frame, matches):
+def draw_matches(matches, frame, mask):
     processed = frame.copy()
     # if car_counter.is_horizontal:
     # 	cv2.line(processed, (0, car_counter.divider), (frame.shape[1], car_counter.divider), DIVIDER_COLOR, 1)
@@ -228,16 +234,9 @@ def draw_matches(frame, matches):
         x,y,w,h = contour
 
         cv2.rectangle(processed, (x,y), (x+w-1, y+h-1), BOUNDING_BOX_COLOR, 1)
+        cv2.rectangle(mask, (x,y), (x+w-1, y+h-1), BOUNDING_BOX_COLOR, 1)
         # cv2.circle(processed, centroid, 2, CENTROID_COLOR, -1)
-    return processed
-
-
-# -----------------------------------------------------------------------------
-# https://medium.com/@galen.ballew/opencv-lanedetection-419361364fc0
-# def lane_detection (frame):
-# 	gray = cv2.cvtColor(processed, cv2.COLOR_BGR2GRAY)
-
-# 	cropped = remove_cropped(gray)
+    return processed, mask
 
 
 # -----------------------------------------------------------------------------
@@ -249,14 +248,14 @@ def main ():
 
     log.debug("Pre-training the background subtractor...")
     default_bg = cv2.imread(SOURCE_IMAGE_FILENAME_FORMAT % 40)
-    if default_bg != None:
+    if default_bg.size:
         bg_subtractor.apply(default_bg, None, 1.0)
 
     car_counter = None
 
     load_cropped()
 
-    cap = cv2.VideoCapture('testvideo-720.mp4');
+    cap = cv2.VideoCapture('testvideo-720.mp4')
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)
 
     cv2.namedWindow('Source Image')
@@ -290,22 +289,22 @@ def main ():
 
         matches = detect_vehicles(mask)
 
-        processed = draw_matches(cropped, matches)
+        processed, mask = draw_matches(matches, cropped, mask)
 
         currentVehicles = car_counter.update_count(matches, frame_number, processed)
 
+        result = cv2.vconcat([cropped, cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR), processed])
+        cv2.imshow("traffic", result)
 
         if currentVehicles > 0:
+            save_frame(SOURCE_IMAGE_FILENAME_FORMAT, frame_number, result, "frame #%d")
+
             # save_frame(SOURCE_IMAGE_FILENAME_FORMAT, frame_number, frame, 
             #     "source frame #%d")
-            save_frame(MASK_IMAGE_FILENAME_FORMAT, frame_number, mask, 
-                "mask frame #%d")
-            save_frame(PROCESSED_IMAGE_FILENAME_FORMAT, frame_number, processed, 
-                "processed frame #%d")
-        
-        # cv2.imshow('Source Image', frame)
-        cv2.imshow('Filtered Mask', mask)
-        cv2.imshow('Processed Image', processed)
+            # save_frame(MASK_IMAGE_FILENAME_FORMAT, frame_number, mask, 
+            #     "mask frame #%d")
+            # save_frame(PROCESSED_IMAGE_FILENAME_FORMAT, frame_number, processed, 
+            #     "processed frame #%d")
 
         # log.debug("Frame #%d processed.", frame_number)
 
