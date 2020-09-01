@@ -23,7 +23,7 @@ class Vehicle (object):
 	def last_position (self):
 		return self.positions[-1]
 	
-	def add_position (self, new_position, contour):
+	def add_position (self, new_position):
 		self.positions.append(new_position)
 		self.frames_since_seen = 0
 
@@ -47,7 +47,7 @@ class Vehicle (object):
 			self.start_frame,
 			self.frames_since_seen)
 
-class VehicleCounter (object):
+class VehicleTracker (object):
 	def __init__(self, width, height, fps, log):
 		self.width = width
 		self.height = height
@@ -73,10 +73,11 @@ class VehicleCounter (object):
 	def update_vehicle (self, vehicle, matches):
 		# Find if any of the matches fits this vehicle
 		for i, match in enumerate(matches):
-			contour, centroid = match
-			distance = self.get_distance(vehicle.last_position, centroid)
+			x, y, w, h = match
+			position = (x+w//2, y+h)
+			distance = self.get_distance(vehicle.last_position, position)
 			if self.is_valid_distance(distance):
-				vehicle.add_position(centroid, contour)
+				vehicle.add_position(position)
 				return i
 
 		# No matches fit
@@ -87,7 +88,7 @@ class VehicleCounter (object):
 
 
 	# TODO: REMOVE small "ghost tracks" by comparing them to avg distance!!!
-	def update_count (self, matches, frame_number, output_image=None):
+	def track (self, matches, frame_number, output_image=None):
 
 		# Update existing vehicles
 		for vehicle in self.vehicles:
@@ -97,21 +98,21 @@ class VehicleCounter (object):
 
 		# For remaining matches, add new vehicles
 		# TODO: IMPORTANT: the bug of multiple little tracks on the same vehicle FIX THIS RONIT GODDAMN IT!!!
-		for match in matches:
-			contour, centroid = match
-			
+		for match in matches:	
+			x, y, w, h = match
+			position = (x+w // 2, y+h)		
 			# skip_this = False
 
 			# for v in self.vehicles:
-			# 	if v.last_position == centroid:
+			# 	if v.last_position == position:
 			# 		skip_this = True
 			# 		break
 
 			# if skip_this:
 			# 	continue
 
-			#if not self.is_past_divider(centroid):
-			new_vehicle = Vehicle(self.next_vehicle_id, centroid, frame_number)
+			#if not self.is_past_divider(position):
+			new_vehicle = Vehicle(self.next_vehicle_id, position, frame_number)
 			self.log.debug('Added vehicle %d', self.next_vehicle_id)
 			self.next_vehicle_id += 1
 			self.vehicles.append(new_vehicle)

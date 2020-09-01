@@ -9,7 +9,7 @@ import re
 import cv2
 import numpy as np
 
-from vehicle_counter import VehicleCounter
+from vehicle_tracker import VehicleTracker
 # from debug_video import DebugVideo
 
 
@@ -22,9 +22,7 @@ WAIT_TIME = 1 # 250 # ms
 LOG_TO_FILE = True
 
 # Colours for drawing on processed frames 
-DIVIDER_COLOR = (255, 255, 0)
 BOUNDING_BOX_COLOR = (255, 0, 0)
-CENTROID_COLOR = (0, 0, 255)
 
 # -----------------------------------------------------------------------------
 def init_logging():
@@ -90,20 +88,13 @@ def filter_mask (mask):
 def process_mask(frame, bg_subtractor):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    mask = bg_subtractor.apply(frame)
+    mask = bg_subtractor.apply(gray)
     mask = filter_mask(mask)
 
     return mask
 
 # -----------------------------------------------------------------------------
-def get_centroid (x, y, w, h):
-    x1 = w // 2
-    y1 = h  # NOT centered -- using bottom edge
-
-    return(x+x1, y+y1)
-
-# -----------------------------------------------------------------------------
-def detect_vehicles (mask):
+def find_matches (mask):
     MIN_CONTOUR_WIDTH = 80
     MIN_CONTOUR_HEIGHT = 30
 
@@ -121,9 +112,7 @@ def detect_vehicles (mask):
         if not contour_valid or not hierarchy[0,i,3] == -1:
             continue
 
-        centroid = get_centroid(x, y, w, h)
-
-        matches.append( ((x,y,w,h), centroid) )
+        matches.append((x,y,w,h))
 
     return matches
 
@@ -132,12 +121,10 @@ def draw_matches(matches, frame, mask):
     processed = frame.copy()
 
     for (i, match) in enumerate(matches):
-        contour, centroid = match
-        x,y,w,h = contour
-
+        x,y,w,h = match
         cv2.rectangle(processed, (x,y), (x+w-1, y+h-1), BOUNDING_BOX_COLOR, 1)
         cv2.rectangle(mask, (x,y), (x+w-1, y+h-1), BOUNDING_BOX_COLOR, 1)
-        # cv2.circle(processed, centroid, 2, CENTROID_COLOR, -1)
+
     return processed, mask
 
 
@@ -163,7 +150,7 @@ def main ():
 
     # video_out = DebugVideo('output.mp4', width, height, fps, log)
 
-    car_counter = VehicleCounter(width, height, fps, log)
+    tracker = VehicleTracker(width, height, fps, log)
 
     cv2.namedWindow('Source Image')
 
@@ -181,11 +168,11 @@ def main ():
 
         mask = process_mask(cropped, bg_subtractor)
 
-        matches = detect_vehicles(mask)
+        matches = find_matches(mask)
 
         processed, mask = draw_matches(matches, cropped, mask)
 
-        currentVehicles = car_counter.update_count(matches, frame_number, processed)
+        currentVehicles = tracker.track(matches, frame_number, processed)
 
         result = cv2.vconcat([cropped, cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR), processed])
         cv2.imshow("traffic", result)
