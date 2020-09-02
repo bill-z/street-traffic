@@ -133,14 +133,15 @@ def draw_matches(matches, frame, mask):
 def main ():
     # I think KNN works better than MOG2, specifically with trucks/large vehicles
     # bg_subtractor = cv2.createBackgroundSubtractorKNN(dist2Threshold=400.0, detectShadows=True)
+    
     bg_subtractor = cv2.createBackgroundSubtractorKNN(history=10, dist2Threshold=100.0, detectShadows=False)
-
+    # bg_subtractor = cv2.createBackgroundSubtractorMOG2()
     log.debug("Pre-training the background subtractor...")
     default_bg = cv2.imread(IMAGE_FILENAME_FORMAT % 1)
     if default_bg.size:
         bg_subtractor.apply(default_bg, None, 1.0)
 
-    car_counter = None
+    tracker = None
 
     cap = cv2.VideoCapture('testvideo2.mp4')
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)
