@@ -65,3 +65,11 @@ class Detector (object):
             matches.append((x,y,w,h))
 
         return matches
+
+    # -----------------------------------------------------------------------------
+    def draw_matches(self, matches, mask):
+        for (i, match) in enumerate(matches):
+            x,y,w,h = match
+            cv2.rectangle(mask, (x,y), (x+w-1, y+h-1), (0, 255, 255), 1)
+
+        return mask

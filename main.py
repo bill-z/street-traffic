@@ -44,16 +44,6 @@ def crop (image):
     h = 240
     return (image[y:y+h, x:x+w] if image is not None else None)
 
-# -----------------------------------------------------------------------------
-def draw_matches(matches, frame, mask):
-    processed = frame.copy()
-
-    for (i, match) in enumerate(matches):
-        x,y,w,h = match
-        cv2.rectangle(processed, (x,y), (x+w-1, y+h-1), BOUNDING_BOX_COLOR, 1)
-        cv2.rectangle(mask, (x,y), (x+w-1, y+h-1), BOUNDING_BOX_COLOR, 1)
-
-    return processed, mask
 
 # -----------------------------------------------------------------------------
 # I was going to use a haar cascade, but i decided against it because I don't want to train one, and even if I did it probably wouldn't work across different traffic cameras
@@ -95,11 +85,11 @@ def main ():
 
         matches, mask = detector.detect(cropped);
 
-        processed, mask = draw_matches(matches, cropped, mask)
+        mask = detector.draw_matches(matches, mask)
 
-        trackedObjectCount = tracker.track(matches, frame_number, processed)
+        trackedObjectCount = tracker.track(matches, frame_number, cropped)
 
-        result = cv2.vconcat([cropped, cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR), processed])
+        result = cv2.vconcat([cropped, cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR), cropped])
         cv2.imshow("Traffic", result)
 
         # video_out.write(result)
