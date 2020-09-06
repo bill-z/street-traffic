@@ -21,7 +21,7 @@ class Detector (object):
         # if not kernels:
             # I want some pretty drastic 
         kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4, 4))
-        kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (20, 8))
+        kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (20, 16))
         # kernel_dilate = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
         # kernels = True
 
@@ -46,7 +46,7 @@ class Detector (object):
     # -----------------------------------------------------------------------------
     def find_matches (self, mask):
         MIN_CONTOUR_WIDTH = 80
-        MIN_CONTOUR_HEIGHT = 30
+        MIN_CONTOUR_HEIGHT = 20
 
         # contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)

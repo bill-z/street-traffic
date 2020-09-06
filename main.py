@@ -6,10 +6,12 @@ import re
 
 import cv2
 import numpy as np
+from imutils.video import FileVideoStream
 
 from log import Log
 from detector import Detector
 from tracker import Tracker
+
 # from debug_video import DebugVideo
 
 LOG_TO_FILE = True
@@ -40,7 +42,7 @@ def crop (image):
     y = 240
     w = 1080
     h = 240
-    return image[y:y+h, x:x+w]
+    return (image[y:y+h, x:x+w] if image is not None else None)
 
 # -----------------------------------------------------------------------------
 def draw_matches(matches, frame, mask):
@@ -53,18 +55,21 @@ def draw_matches(matches, frame, mask):
 
     return processed, mask
 
-
 # -----------------------------------------------------------------------------
 # I was going to use a haar cascade, but i decided against it because I don't want to train one, and even if I did it probably wouldn't work across different traffic cameras
 def main ():
+    # video_out = DebugVideo('output.mp4', width, height, fps, log)
 
-    cap = cv2.VideoCapture('testvideo2.mp4')
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)
+    fvs = FileVideoStream('testvideo2.mp4').start()
+    cap = fvs.stream;
+    time.sleep(1.0)
+
+    # cap = cv2.VideoCapture('testvideo2.mp4')
+    # cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)
+
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     fps = cap.get(cv2.CAP_PROP_FPS)
-
-    # video_out = DebugVideo('output.mp4', width, height, fps, log)
 
     initial_bg = cv2.imread(IMAGE_FILENAME_FORMAT % 1)
 
@@ -72,16 +77,18 @@ def main ():
 
     tracker = Tracker(width, height, fps, log)
 
-    # cv2.namedWindow('Source Image')
-
     frame_number = -1
 
-    while True:
+    while fvs.running():
         frame_number += 1
-        ret, frame = cap.read()
-        if not ret:
-            log.debug('Frame capture failed, stopping...')
-            break
+        frame = fvs.read()
+        if frame is None:
+            continue
+
+        # ret, frame = cap.read()
+        # if not ret:
+        #     log.debug('Frame capture failed, stopping...')
+        #     break
 
         # crop to region of interest
         cropped = crop(frame)
@@ -107,12 +114,10 @@ def main ():
             log.debug("ESC or q key, stopping...")
             break
 
-        # Keep video's speed stable
-        # I think that this causes the abrupt jumps in the video
-        # time.sleep( 1.0 / cap.get(cv2.CAP_PROP_FPS) )
-
     log.debug('Closing video capture...')
-    cap.release()
+    # cap.release()
+    fvs.stop()
+
     # video_out.release()
     cv2.destroyAllWindows()
     log.debug('Done.')

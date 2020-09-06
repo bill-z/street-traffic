@@ -140,10 +140,10 @@ class Tracker (object):
             x, y, w, h = match
             position = (x+w// 2, y+h)		
 
-            # if position[0] < 100 or position[0] > 980: 
-            new_vehicle = Vehicle(self.next_vehicle_id, position, frame_number)
-            self.log.debug('Added vehicle %d', self.next_vehicle_id)
-            self.next_vehicle_id += 1
-            self.vehicles.append(new_vehicle)
+            if position[0] < 100 or position[0] > 980: 
+                new_vehicle = Vehicle(self.next_vehicle_id, position, frame_number)
+                self.log.debug('Added vehicle %d', self.next_vehicle_id)
+                self.next_vehicle_id += 1
+                self.vehicles.append(new_vehicle)
 
         return len(self.vehicles)
