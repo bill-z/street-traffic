@@ -48,21 +48,17 @@ def crop (image):
 # -----------------------------------------------------------------------------
 # I was going to use a haar cascade, but i decided against it because I don't want to train one, and even if I did it probably wouldn't work across different traffic cameras
 def main ():
-    # video_out = DebugVideo('output.mp4', width, height, fps, log)
-
     fvs = FileVideoStream('testvideo2.mp4').start()
     cap = fvs.stream;
     time.sleep(1.0)
-
-    # cap = cv2.VideoCapture('testvideo2.mp4')
-    # cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)
 
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     fps = cap.get(cv2.CAP_PROP_FPS)
 
-    initial_bg = cv2.imread(IMAGE_FILENAME_FORMAT % 1)
+    # video_out = DebugVideo(width, 480, fps, log)
 
+    initial_bg = cv2.imread(IMAGE_FILENAME_FORMAT % 1)
     detector = Detector(initial_bg, log)
 
     tracker = Tracker(width, height, fps, log)
@@ -75,11 +71,6 @@ def main ():
         if frame is None:
             continue
 
-        # ret, frame = cap.read()
-        # if not ret:
-        #     log.debug('Frame capture failed, stopping...')
-        #     break
-
         # crop to region of interest
         cropped = crop(frame)
 
@@ -89,7 +80,7 @@ def main ():
 
         trackedObjectCount = tracker.track(matches, frame_number, cropped)
 
-        result = cv2.vconcat([cropped, cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR), cropped])
+        result = cv2.vconcat([cropped, cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)])
         cv2.imshow("Traffic", result)
 
         # video_out.write(result)
@@ -97,15 +88,12 @@ def main ():
         if trackedObjectCount > 0:
             save_frame(IMAGE_FILENAME_FORMAT, frame_number, result, "frame #%d")
 
-        # log.debug("Frame #%d processed.", frame_number)
-
         key = cv2.waitKey(WAIT_TIME)
         if key == ord('q') or key == 27:
             log.debug("ESC or q key, stopping...")
             break
 
     log.debug('Closing video capture...')
-    # cap.release()
     fvs.stop()
 
     # video_out.release()

@@ -46,7 +46,9 @@ class Detector (object):
     # -----------------------------------------------------------------------------
     def find_matches (self, mask):
         MIN_CONTOUR_WIDTH = 80
-        MIN_CONTOUR_HEIGHT = 20
+        MIN_CONTOUR_HEIGHT = 30
+        MAX_CONTOUR_WIDTH = 540
+        MAX_CONTOUR_HEIGHT = 200
 
         # contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -57,7 +59,10 @@ class Detector (object):
         # https://stackoverflow.com/questions/11782147/python-opencv-contour-tree-hierarchy
         for (i, contour) in enumerate(contours):
             x, y, w, h = cv2.boundingRect(contour)
-            contour_valid = (w >= MIN_CONTOUR_WIDTH) and (h >= MIN_CONTOUR_HEIGHT)
+            contour_valid = (w >= MIN_CONTOUR_WIDTH and 
+                h >= MIN_CONTOUR_HEIGHT and
+                w <= MAX_CONTOUR_WIDTH and
+                h <= MAX_CONTOUR_HEIGHT)
 
             if not contour_valid or not hierarchy[0,i,3] == -1:
                 continue
@@ -70,6 +75,6 @@ class Detector (object):
     def draw_matches(self, matches, mask):
         for (i, match) in enumerate(matches):
             x,y,w,h = match
-            cv2.rectangle(mask, (x,y), (x+w-1, y+h-1), (0, 255, 255), 1)
+            cv2.rectangle(mask, (x,y), (x+w-1, y+h-1), (128, 128, 128), 1)
 
         return mask
