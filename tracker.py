@@ -10,6 +10,8 @@ UNION_COLOR = (255, 0, 255)
 NEW_RECT_COLOR = (0, 255, 0)
 LAST_RECT_COLOR = (0, 0, 255)
 
+MAX_UNSEEN_FRAMES = 10
+
 # =============================================================================
 class Vehicle (object):
     def __init__ (self, id, rect, start_frame, log):
@@ -23,6 +25,7 @@ class Vehicle (object):
         self.log = log
         self.mph = 0
         self.pixel_speed = 0
+        self.done = False
 
         if (position[0] <= 100):
         	self.direction = 1
@@ -93,7 +96,7 @@ class Vehicle (object):
         new = (0, 0, 0, 0)
         match_count = 0
         matched = []
-        self.log.debug("%04d [%d]   (%d, %d, %d, %d) rect", frame_number, self.id, vx, vy, vw, vh)
+        # self.log.debug("%04d [%d]   (%d, %d, %d, %d) rect", frame_number, self.id, vx, vy, vw, vh)
 
         # Find matches for this vehicle
         #   Create a union of all matches that overlap with the previous position
@@ -108,13 +111,13 @@ class Vehicle (object):
                 match_count += 1
                 matched.append(i)
 
-                self.log.debug("     [%d]   (%d, %d) match", self.id, x, x+w)
-                cv2.rectangle(image, (x, y), (x+w-1, y+h-1), MATCH_COLOR)
+                # self.log.debug("     [%d]   (%d, %d) match", self.id, x, x+w)
+                # cv2.rectangle(image, (x, y), (x+w-1, y+h-1), MATCH_COLOR)
                 
                 if (match_count > 1):
                     x, y, w, h = new
-                    self.log.debug("     [%d]   (%d, %d) union", self.id, x, x+w)
-                    cv2.rectangle(image, (x, y), (x+w-1, y+h-1), UNION_COLOR)
+                    # self.log.debug("     [%d]   (%d, %d) union", self.id, x, x+w)
+                    # cv2.rectangle(image, (x, y), (x+w-1, y+h-1), UNION_COLOR)
 
         if match_count > 0:     
             # delete matched matches (from highest to lowest index, to keep indices valid)
@@ -124,39 +127,6 @@ class Vehicle (object):
 
             x, y, w, h = new
             self.add_position((x, y+h), new)
-
-            # # update vehicle position/rect
-            # nx, ny, nw, nh = new
-            # if nw < vw:
-            #     # width shouldn't shrink, so vehicle must be behind something
-
-            #     # which end is hidden?
-            #     # lock in to the edge moving closest to previous speed
-            #     dl = abs(vx - nx)
-            #     dleft = abs(dl - self.pixel_speed)
-            #     dr = abs((vx+vw) - (nx+nw))
-            #     dright = abs(dr - self.pixel_speed)
-
-            #     self.log.debug("     [%d]   vx %d vy %d vw %d vh %d", self.id, vx, vy, vw, vh)
-            #     self.log.debug("     [%d]   nx %d ny %d nw %d nh %d", self.id, nx, ny, nw, nh)
-            #     self.log.debug("     [%d]   dl %d dr %d sp %d", self.id, dl, dr, self.pixel_speed)
-
-            #     if dleft < dright:
-            #         nx = nx
-            #     else:
-            #         nx = nx + nw - vw
-            #         if nx < 0:
-            #             nx = 0
-
-            #     nw = vw
-            #     # TODO check > 1080
-
-            # # use leading/front edge as position    
-            # if (self.direction > 0):
-            #     xpos = nx + nw
-            # else:
-            #     xpos = nx
-            # self.add_position((xpos, ny+nh), (nx, ny, nw, nh))
 
         else:
             # print('No matches found for vehicle %s' % vehicle.id)
@@ -175,8 +145,6 @@ class Vehicle (object):
 
         frames = (frame_number - self.start_frame)
         seconds = frames / fps
-        # Convert to bz
-
         hours = seconds / 60 / 60
 
         # MPH
@@ -192,9 +160,9 @@ class Vehicle (object):
         cv2.putText(output_image, ("%3.2f" % self.mph), (x, y+20), cv2.FONT_HERSHEY_PLAIN, 1.0, self.color, 1)
 
         # previous rect
-        if len(self.rects) > 1:
-            x, y, w, h = self.rects[-2]
-            cv2.rectangle(output_image, (x, y), (x+w-1, y+h-1), LAST_RECT_COLOR)
+        # if len(self.rects) > 1:
+        #     x, y, w, h = self.rects[-2]
+        #     cv2.rectangle(output_image, (x, y), (x+w-1, y+h-1), LAST_RECT_COLOR)
 
         # current rect
         x, y, w, h = self.rects[-1]
@@ -202,16 +170,37 @@ class Vehicle (object):
             
     def write_log(self, frame_number):
         x, y, w, h = self.rects[-1]
-        dir = ('<' if self.direction < 0 else '>')
-        self.log.debug("%04d [%d] %c (%d %d %d %d) mph: %3.2f start: %d since: %d", 
-            frame_number,
-            self.id, 
-            dir,
-            x, y, w, h,
-            self.mph,
-            self.start_frame,
-            self.frames_since_seen)
+        # dir = ('<' if self.direction < 0 else '>')
+        # self.log.debug("%04d [%d] %c (%d %d %d %d) mph: %3.2f start: %d since: %d", 
+        #     frame_number,
+        #     self.id, 
+        #     dir,
+        #     x, y, w, h,
+        #     self.mph,
+        #     self.start_frame,
+        #     self.frames_since_seen)
 
+    def track(self, matches, frame_number, fps, output_image):
+        matches = self.find_match(matches, frame_number, output_image)
+
+        self.calc_speed(frame_number, fps)
+        self.write_log(frame_number)
+
+        if output_image is not None:
+            self.draw(output_image)
+
+        dir = self.direction
+        x, y, w, h = self.rects[-1]
+        if (self.frames_since_seen >= MAX_UNSEEN_FRAMES
+            or (dir < 0 and x <= 10) 
+            or (dir > 0 and x+w >= 1070)):
+            self.done = True
+            if dir > 0:
+                self.log.debug("%04d [%d] DONE > %d %d", frame_number, self.id, x+w, self.frames_since_seen)
+            else:
+                self.log.debug("%04d [%d] DONE < %d %d", frame_number, self.id, x, self.frames_since_seen)
+
+        return matches
 
 # =============================================================================
 class Tracker (object):
@@ -230,29 +219,24 @@ class Tracker (object):
     def track (self, matches, frame_number, output_image=None):
         # Pair new matches with vehicles
         for vehicle in self.vehicles:
-            matches = vehicle.find_match(matches, frame_number, output_image)
+            matches = vehicle.track(matches, frame_number, self.fps, output_image)
+            # matches = vehicle.find_match(matches, frame_number, output_image)
 
-            vehicle.calc_speed(frame_number, self.fps)
-            vehicle.write_log(frame_number)
+            # vehicle.calc_speed(frame_number, self.fps)
+            # vehicle.write_log(frame_number)
 
-            if output_image is not None:
-                vehicle.draw(output_image)
+            # if output_image is not None:
+            #     vehicle.draw(output_image)
 
+        # draw speed lines
+        if output_image is not None:
+            cv2.line(output_image, (100, 0), (100, 240), (255, 255, 255), 1)
+            cv2.line(output_image, (1080-100, 0), (1080-100, 240), (255, 255, 255), 1)
+ 
         # Remove vehicles that have not been seen in a while
-        removed = [v.id for v in self.vehicles
-            if (v.frames_since_seen >= self.max_unseen_frames
-                or (v.direction < 0 and v.last_position[0] <= 0) 
-                or (v.direction > 0 and v.last_position[0] >= 1080)
-            )]
+        removed = [v.id for v in self.vehicles if v.done]
 
-        self.vehicles[:] = [v for v in self.vehicles
-            if not (v.frames_since_seen >= self.max_unseen_frames
-                or (v.direction < 0 and v.last_position[0] <= 0)
-                or (v.direction > 0 and v.last_position[0] >= 1080)
-            )]
-    
-        for id in removed:
-            self.log.debug("%04d [%d] REMOVE", frame_number, id)
+        self.vehicles[:] = [v for v in self.vehicles if not v.done]
 
         # Check remaining matches for new vehicles
         MIN_VEHICLE_WIDTH = 80

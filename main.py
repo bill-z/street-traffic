@@ -76,7 +76,7 @@ def main ():
 
         matches, mask = detector.detect(cropped);
 
-        mask = detector.draw_matches(matches, mask)
+        # mask = detector.draw_matches(matches, mask)
 
         trackedObjectCount = tracker.track(matches, frame_number, cropped)
 

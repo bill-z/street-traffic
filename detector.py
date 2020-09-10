@@ -3,9 +3,9 @@ import cv2
 # =============================================================================
 class Detector (object):
     def __init__(self, initial_bg, log):
-        self.log = log;
-        self.bg_subtractor = cv2.createBackgroundSubtractorKNN(history=10, dist2Threshold=100.0, detectShadows=False)
-        # bg_subtractor = cv2.createBackgroundSubtractorMOG2()
+        self.log = log
+        # self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(history=1, varThreshold=3.0, detectShadows=False)
+        self.bg_subtractor = cv2.createBackgroundSubtractorKNN(history=1, dist2Threshold=25.0, detectShadows=False)
         self.log.debug("Pre-training the background subtractor...")
         if initial_bg is not None and initial_bg.size:
             self.bg_subtractor.apply(initial_bg, None, 1.0)
@@ -18,35 +18,31 @@ class Detector (object):
 
     # -----------------------------------------------------------------------------
     def filter_mask (self, mask):
-        # if not kernels:
-            # I want some pretty drastic 
-        kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4, 4))
-        kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (20, 16))
+        kernel_open = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (16, 16))
         # kernel_dilate = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-        # kernels = True
 
         # Remove noise
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_open)
+        # mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_open, iterations = 1)
+        mask = cv2.erode(mask, kernel_open, iterations = 1)
 
         # Close holes within contours
-        # mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close)
-
+        # mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close, iterations = 2)
         mask = cv2.dilate(mask, kernel_close, iterations = 1)
+
         return mask
 
     # -----------------------------------------------------------------------------
     def process_mask(self, frame, bg_subtractor):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
         mask = self.bg_subtractor.apply(gray)
         mask = self.filter_mask(mask)
-
         return mask
 
     # -----------------------------------------------------------------------------
     def find_matches (self, mask):
-        MIN_CONTOUR_WIDTH = 80
-        MIN_CONTOUR_HEIGHT = 30
+        MIN_CONTOUR_WIDTH = 30
+        MIN_CONTOUR_HEIGHT = 20
         MAX_CONTOUR_WIDTH = 540
         MAX_CONTOUR_HEIGHT = 200
 
