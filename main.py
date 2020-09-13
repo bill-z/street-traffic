@@ -1,16 +1,15 @@
 
 import os
-import time
-import json
-import re
+#import time
+#import json
+#import re
 
 import cv2
-import numpy as np
-from imutils.video import FileVideoStream
 
 from log import Log
 from detector import Detector
 from tracker import Tracker
+from video import VideoSource
 
 # from debug_video import DebugVideo
 
@@ -38,38 +37,33 @@ def save_frame(file_name_format, frame_number, frame, label_format):
 def crop (image):
     # keep the center vertical third of the image, full width (of 1080x720)
     #TODO define these "better"
-    x = 0
-    y = 240
-    w = 1080
-    h = 240
-    return (image[y:y+h, x:x+w] if image is not None else None)
-
+    # x = 0
+    # y = 240
+    # w = 1080
+    # h = 240
+    #return (image[y:y+h, x:x+w] if image is not None else None)
+    return image
 
 # -----------------------------------------------------------------------------
-# I was going to use a haar cascade, but i decided against it because I don't want to train one, and even if I did it probably wouldn't work across different traffic cameras
 def main ():
-    fvs = FileVideoStream('testvideo2.mp4').start()
-    cap = fvs.stream;
-    time.sleep(1.0)
 
-    width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-    height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-    fps = cap.get(cv2.CAP_PROP_FPS)
+    video = VideoSource(video_file, log)
+    width, height, fps = video.start()
+    initial_bg = video.read()
 
     # video_out = DebugVideo(width, 480, fps, log)
 
-    initial_bg = cv2.imread(IMAGE_FILENAME_FORMAT % 1)
     detector = Detector(initial_bg, log)
 
     tracker = Tracker(width, height, fps, log)
 
-    frame_number = -1
+    frame_number = 0
 
-    while fvs.running():
-        frame_number += 1
-        frame = fvs.read()
+    while (not video.done()):
+        frame = video.read()
         if frame is None:
             continue
+        frame_number += 1
 
         # crop to region of interest
         cropped = crop(frame)
@@ -93,8 +87,8 @@ def main ():
             log.debug("ESC or q key, stopping...")
             break
 
-    log.debug('Closing video capture...')
-    fvs.stop()
+    log.debug('Closing video source...')
+    video.stop()       
 
     # video_out.release()
     cv2.destroyAllWindows()
@@ -109,5 +103,8 @@ if __name__ == '__main__':
     if not os.path.exists(IMAGE_DIR):
         log.debug("Creating image directory `%s`...", IMAGE_DIR)
         os.makedirs(IMAGE_DIR)
+
+    video_file = None
+    # video_file = 'video/testvideo2.mp4'
 
     main()

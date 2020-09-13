@@ -18,7 +18,7 @@ class Log (object):
         self.main_logger.addHandler(handler_stream)
 
         if self.logToFileEnabled:
-            handler_file = logging.handlers.RotatingFileHandler("debug.log"
+            handler_file = logging.handlers.RotatingFileHandler("log/debug.log"
                 , maxBytes = 2**24
                 , backupCount = 10)
             handler_file.setFormatter(formatter)

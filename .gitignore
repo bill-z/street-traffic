@@ -3,6 +3,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 .vscode
-debug.log
+log
+video
 images*/*
-*.mp4
