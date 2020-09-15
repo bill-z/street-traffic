@@ -15,9 +15,15 @@ class VideoSource (object):
             self.stream = self.fvs.stream;
             time.sleep(1.0)
         else: 
-            self.log.debug("Using camera")
-            self.stream = cv2.VideoCapture(0)
-            self.stream.set(cv2.CAP_PROP_BUFFERSIZE, 2)
+            usePiCamera = True
+            if usePiCamera:
+                self.log.debug("Using pi camera")
+                self.stream = cv2.VideoCapture(0)
+                self.stream.set(cv2.CAP_PROP_BUFFERSIZE, 2) 
+            else:
+                self.log.debug("Using web camera")
+                self.stream = cv2.VideoCapture(0)
+                self.stream.set(cv2.CAP_PROP_BUFFERSIZE, 2)
 
         self.width = self.stream.get(cv2.CAP_PROP_FRAME_WIDTH)
         self.height = self.stream.get(cv2.CAP_PROP_FRAME_HEIGHT)

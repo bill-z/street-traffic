@@ -3,13 +3,16 @@ import os
 #import time
 #import json
 #import re
+import argparse
+import datetime
 
 import cv2
 
 from log import Log
 from detector import Detector
 from tracker import Tracker
-from video import VideoSource
+# from video import VideoSource
+from imutils.video import VideoStream
 
 # from debug_video import DebugVideo
 
@@ -29,27 +32,48 @@ def save_frame(file_name_format, frame_number, frame, label_format):
     file_name = file_name_format % frame_number
     # label = label_format % frame_number
 
+    # draw the timestamp on the frame
+    timestamp = datetime.datetime.now()
+    ts = timestamp.strftime("%A %d %B %Y %I:%M:%S%p")
+    cv2.putText(frame, ts, (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX,
+        0.35, (0, 0, 255), 1)
+
     # log.debug("Saving %s as '%s'", label, file_name)
     cv2.imwrite(file_name, frame)
 
 # -----------------------------------------------------------------------------
 # Remove cropped regions from frame
-def crop (image):
-    # keep the center vertical third of the image, full width (of 1080x720)
+def crop (frame):
+    #frame = imutils.resize(frame, width=1280)
+    
+    # keep the center vertical third of the frame, full width (of 1280x720)
     #TODO define these "better"
     # x = 0
     # y = 240
     # w = 1080
     # h = 240
-    #return (image[y:y+h, x:x+w] if image is not None else None)
-    return image
+    #return (frame[y:y+h, x:x+w] if frame is not None else None)
+    return frame
 
 # -----------------------------------------------------------------------------
 def main ():
 
-    video = VideoSource(video_file, log)
-    width, height, fps = video.start()
+    # width = 1080
+    # height = 720
+    # fps = 30
+
+    width = 1080
+    height = 720
+    fps = 32
+
+    video = VideoStream(usePiCamera = True, resolution=(width, height), framerate = fps)
+    video.start()
+
+    # video = VideoSource(video_file, log)
+    # width, height, fps = video.start()
+
     initial_bg = video.read()
+    # initial_bg = imutils.resize(frame, width=400)
 
     # video_out = DebugVideo(width, 480, fps, log)
 
@@ -59,7 +83,8 @@ def main ():
 
     frame_number = 0
 
-    while (not video.done()):
+    # while (not video.done()):
+    while(True):
         frame = video.read()
         if frame is None:
             continue
@@ -96,6 +121,17 @@ def main ():
 
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
+    # construct the argument parser and parse the arguments
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-p", "--picamera", type=int, default=-1,
+        help="whether or not the Raspberry Pi camera should be used")
+    args = vars(ap.parse_args())
+    usePiCamera = args["picamera"] > 0
+
+    if usePiCamera:
+        video_file = None
+    else:
+        video_file = 'video/testvideo2.mp4'
 
     log = Log(LOG_TO_FILE)
     log = log.getLog()
@@ -103,8 +139,5 @@ if __name__ == '__main__':
     if not os.path.exists(IMAGE_DIR):
         log.debug("Creating image directory `%s`...", IMAGE_DIR)
         os.makedirs(IMAGE_DIR)
-
-    video_file = None
-    # video_file = 'video/testvideo2.mp4'
 
     main()
