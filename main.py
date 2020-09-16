@@ -9,8 +9,6 @@ from log import Log
 from detector import Detector
 from tracker import Tracker
 from video import VideoSource
-# from imutils.video import VideoStream
-# from debug_video import DebugVideo
 
 LOG_TO_FILE = True
 
@@ -68,7 +66,8 @@ def main ():
     tracker = Tracker(width, height, framerate, log)
 
     frame_number = 0
-    start_time = time()
+    start_time = datetime.datetime.now()
+
     while (not video.done()):
         frame = video.read()
         if frame is None:
@@ -98,8 +97,14 @@ def main ():
             log.debug('ESC or q key, stopping...')
             break
 
-    log.debug('Closing video source... after %d frames', frame_number)
-    video.stop()       
+    log.debug('Closing video source...')
+    video.stop()
+
+    # display fps
+    end_time = datetime.datetime.now()       
+    elapsed_time = (end_time - start_time).total_seconds()
+    fps = frame_number / elapsed_time
+    log.debug('fps: %3.4f (%d / %f)', fps, frame_number, elapsed_time)
 
     # video_out.release()
     cv2.destroyAllWindows()
