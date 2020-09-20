@@ -40,12 +40,12 @@ def save_frame(file_name_format, frame_number, frame, most_recent_vehicle):
 def crop (frame):
     #frame = imutils.resize(frame, width=1280)
     
-    # keep the center vertical third of the frame, full width (of 1280x720)
+    # keep the center vertical third of the frame, full width (of 1080x720)
     #TODO define these "better"
     x = 0
-    y = 160
+    y = 190
     w = 640
-    h = 120
+    h = 70
     # x = 0
     # y = 320
     # w = 1080

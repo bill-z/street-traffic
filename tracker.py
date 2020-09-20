@@ -13,7 +13,7 @@ NEW_RECT_COLOR = (0, 255, 0)
 LAST_RECT_COLOR = (0, 0, 255)
 EDGE_LINE_COLOR = (255, 255, 255)
 
-PIXELS_PER_FOOT = 5 # wild guess
+PIXELS_PER_FOOT = 4.5 
 FEET_PER_MILE = 5280
 PIXELS_PER_MILE = PIXELS_PER_FOOT * FEET_PER_MILE
 SECONDS_PER_HOUR = 3600
@@ -242,7 +242,7 @@ class Vehicle (object):
     def draw (self, output_image):
         path = []
         for rect in self.rects:
-            point = (rect[0], rect[1])
+            point = (rect[0], rect[1]+rect[3])
             path.append(point) 
             cv2.circle(output_image, point, 2, self.color, -1)
         cv2.polylines(output_image, [np.int32(path)], False, self.color, 1)
