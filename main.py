@@ -1,7 +1,7 @@
 
 import os
 import argparse
-import datetime
+from datetime import datetime
 
 import cv2
 
@@ -13,21 +13,21 @@ from video import VideoSource
 LOG_TO_FILE = True
 
 IMAGE_DIR = 'images'
-IMAGE_FILENAME_FORMAT = IMAGE_DIR + '/frame_%04d.png'
+IMAGE_FILENAME_FORMAT = IMAGE_DIR + '/frame_%05d_%04d.png'
 
 # Time to wait between frames, 0=forever
 WAIT_TIME = 1 # 250 # ms
 
-# Colours for drawing on processed frames 
+# Colours for drawing on processed frames
 BOUNDING_BOX_COLOR = (255, 0, 0)
 
 # -----------------------------------------------------------------------------
-def save_frame(file_name_format, frame_number, frame, label_format):
-    file_name = file_name_format % frame_number
+def save_frame(file_name_format, frame_number, frame, most_recent_vehicle):
+    file_name = file_name_format % (frame_number, most_recent_vehicle)
     # label = label_format % frame_number
 
     # draw the timestamp on the frame
-    timestamp = datetime.datetime.now()
+    timestamp = datetime.now()
     ts = timestamp.strftime('%A %d %B %Y %I:%M:%S%p')
     cv2.putText(frame, ts, (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX,
         0.35, (0, 0, 255), 1)
@@ -44,16 +44,21 @@ def crop (frame):
     #TODO define these "better"
     x = 0
     y = 160
-    w = 540
+    w = 640
     h = 120
+    # x = 0
+    # y = 320
+    # w = 1080
+    # h = 240
+
     return (frame[y:y+h, x:x+w] if frame is not None else None)
 
 # -----------------------------------------------------------------------------
 def main ():
-    resolution = (540, 360)
-    framerate = 30
+    resolution = (640, 360)
+    framerate = 32
 
-    video = VideoSource(video_file, log, usePiCamera = usePiCamera, resolution=resolution, framerate = framerate)
+    video = VideoSource(video_file, log, use_pi_camera=use_pi_camera, resolution=resolution, framerate = framerate)
     (width, height), framerate = video.start()
 
     initial_bg = video.read()
@@ -63,12 +68,14 @@ def main ():
 
     detector = Detector(initial_bg, log)
 
-    tracker = Tracker(width, height, framerate, log)
+    tracker = Tracker(resolution, framerate, log)
 
     frame_number = 0
-    start_time = datetime.datetime.now()
+    overall_start_time = datetime.now()
+    expected_frame_time_ms = 1000 // framerate # millisecs
 
     while (not video.done()):
+        frame_start_time = datetime.now()
         frame = video.read()
         if frame is None:
             continue
@@ -78,21 +85,28 @@ def main ():
         # crop to region of interest
         cropped = crop(frame)
 
-        matches, mask = detector.detect(cropped);
+        matches, mask = detector.detect(cropped)
 
         # mask = detector.draw_matches(matches, mask)
 
-        trackedObjectCount = tracker.track(matches, frame_number, cropped)
+        # trackedObjectCount = tracker.track(matches, frame_number, resolution, cropped)
+        most_recent_vehicle = tracker.track(matches, frame_number, resolution, cropped)
 
         result = cv2.vconcat([cropped, cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)])
         cv2.imshow('Traffic', result)
 
         # video_out.write(result)
 
-        # if trackedObjectCount > 0:
-        #     save_frame(IMAGE_FILENAME_FORMAT, frame_number, result, 'frame #%d')
+        if most_recent_vehicle > 0:
+            save_frame(IMAGE_FILENAME_FORMAT, frame_number, result, most_recent_vehicle)
 
-        key = cv2.waitKey(WAIT_TIME)
+        # what time is left in the frame?
+        frametime = datetime.now() - frame_start_time # micro
+        remaining_frame_time_ms = expected_frame_time_ms - frametime.microseconds // 1000 # milli
+        # log.debug('%d', remaining_frame_time_ms)
+
+        # key = cv2.waitKey(max(remaining_frame_time_ms, 1))
+        key = cv2.waitKey(1)
         if key == ord('q') or key == 27:
             log.debug('ESC or q key, stopping...')
             break
@@ -100,9 +114,8 @@ def main ():
     log.debug('Closing video source...')
     video.stop()
 
-    # display fps
-    end_time = datetime.datetime.now()       
-    elapsed_time = (end_time - start_time).total_seconds()
+    # display overall fps      
+    elapsed_time = (datetime.now() - overall_start_time).total_seconds()
     fps = frame_number / elapsed_time
     log.debug('fps: %3.4f (%d / %f)', fps, frame_number, elapsed_time)
 
@@ -117,9 +130,9 @@ if __name__ == '__main__':
     ap.add_argument('-p', '--picamera', type=int, default=-1,
         help='whether or not the Raspberry Pi camera should be used')
     args = vars(ap.parse_args())
-    usePiCamera = args['picamera'] > 0
+    use_pi_camera = args['picamera'] > 0
 
-    if usePiCamera:
+    if use_pi_camera:
         video_file = None
     else:
         video_file = 'video/testvideo2.mp4'

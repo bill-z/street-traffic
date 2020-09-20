@@ -4,24 +4,31 @@ import cv2
 from imutils.video import FileVideoStream, VideoStream
 
 class VideoSource (object):
-    def __init__ (self, video_file, log, usePiCamera = True, resolution=(320, 200), framerate = 30):
+    def __init__ (self, video_file, log, use_pi_camera = True, resolution=(320, 200), framerate = 30):
         self.filename = video_file
         self.log = log
-        self.usePiCamera = usePiCamera
+        self.use_pi_camera  = use_pi_camera
         self.resolution = resolution
         self.framerate = framerate
+        self.fvs = None
+        self.stream = None
 
     def start (self):
         if self.filename is not None:
             self.log.debug('Video file: %s', self.filename)
             self.fvs = FileVideoStream(self.filename).start()
-            self.stream = self.fvs.stream;
+            self.stream = self.fvs.stream
             time.sleep(1.0)
         else: 
-            if self.usePiCamera:
+            if self.use_pi_camera:
                 self.log.debug('Pi Camera (%d %d)', self.resolution[0], self.resolution[1])
-                self.stream = VideoStream(src=0, usePiCamera=True, resolution=self.resolution, framerate=self.framerate).start()
-                self.stream.camera.rotation = 180
+                self.stream = VideoStream(src=0,
+                    usePiCamera=True,                    
+                    resolution=self.resolution,
+                    framerate=self.framerate,
+                    sensor_mode=5,
+                    rotation=180
+                    ).start()
                 # night = True
                 # if night:
                 #     self.stream.camera.exposure_mode = 'sports'
