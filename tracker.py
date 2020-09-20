@@ -198,21 +198,32 @@ class Vehicle (object):
         #     frame_number, self.id, self.speed_start_x, rx1, rx2)
 
     def stop_speed(self, frame_number, fps):
+        # distance
         x, y = self.last_position
         pixels = abs(x - self.speed_start_x)
-        frames = frame_number - self.speed_start_frame
-        dt = datetime.now() - self.speed_start_time
-        clock_secs = dt.seconds
-        clock_hours = dt.seconds / SECONDS_PER_HOUR
-        frame_secs = frames / fps
-        frame_hours = frames / fps / SECONDS_PER_HOUR
         feet = pixels / PIXELS_PER_FOOT
         miles = pixels / PIXELS_PER_MILE
+
+        # speed based on frame time
+        frames = frame_number - self.speed_start_frame
+        frame_secs = frames / fps
+        frame_hours = frames / fps / SECONDS_PER_HOUR
         fmph = miles / frame_hours
-        cmph = miles / clock_hours
+
+        # speed based on clock time
+        dt = datetime.now() - self.speed_start_time
+        clock_secs = dt.seconds + dt.microseconds / 1000000
+        if clock_secs > 0:
+            clock_hours = clock_secs / SECONDS_PER_HOUR
+            cmph = miles / clock_hours
+        else:
+            self.log.debug('Vehicle.stop_speed: clock_secs = 0')
+            clock_hours = 0
+            cmph = 0
+
         self.state = State.DONE
  
-        self.log.debug('%d [%d] %c mph:%2.1f  p:%d (%d->%d), ft:%3.1f m:%1.4f frames:%d fs:%3.2f s:%3.2f h:%1.6f', 
+        self.log.debug('%d [%d] %c mph:%2.1f  p:%d (%d->%d), ft:%3.1f m:%1.4f fmph:%2.1f frames:%d fs:%3.2f s:%3.2f h:%1.6f', 
             frame_number,
             self.id, 
             '>' if self.direction > 0 else '<',
@@ -222,6 +233,7 @@ class Vehicle (object):
             x,
             feet,
             miles,
+            fmph,
             frames,
             frame_secs,
             clock_secs,

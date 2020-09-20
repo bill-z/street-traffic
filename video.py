@@ -34,7 +34,9 @@ class VideoSource (object):
                 #     self.stream.camera.exposure_mode = 'sports'
                 #     self.stream.camera.shutter_speed = 33333
                 # self.stream.camera.zoom = (0, 200, 1080, 300)
-                time.sleep(1.0)
+                
+                # let camera warm up
+                time.sleep(2.0) 
             else:
                 self.log.debug('Web Camera')
                 self.stream = cv2.VideoCapture(0)
