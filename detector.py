@@ -7,7 +7,7 @@ class Detector (object):
         # self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
         #   history=1, varThreshold=3.0, detectShadows=False)
         self.bg_subtractor = cv2.createBackgroundSubtractorKNN(
-                history=1, dist2Threshold=25.0, detectShadows=False)
+                history=5, dist2Threshold=25.0, detectShadows=False)
         self.log.debug("Pre-training the background subtractor...")
         if initial_bg is not None and initial_bg.size:
             self.bg_subtractor.apply(initial_bg, None, 1.0)

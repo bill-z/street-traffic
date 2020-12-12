@@ -26,17 +26,33 @@ class VideoSource (object):
                     usePiCamera=True,                    
                     resolution=self.resolution,
                     framerate=self.framerate,
-                    sensor_mode=5,
-                    rotation=180
+                    sensor_mode=5
                     ).start()
+
+                # let camera warm up
+                time.sleep(2) 
+
+                # Now fix the values
+                camera = self.stream.camera
+                camera.shutter_speed = camera.exposure_speed
+                camera.exposure_mode = 'off'
+                g = camera.awb_gains
+                camera.awb_mode = 'off'
+                camera.awb_gains = g
+
+                # camera.shutter_speed = camera.exposure_speed
+                # camera.exposure_mode = 'off'
+                # gains = camera.awb_gains
+                # camera.awb_mode = 'off'
+                # camera.awb_gains = gains
+
                 # night = True
                 # if night:
                 #     self.stream.camera.exposure_mode = 'sports'
                 #     self.stream.camera.shutter_speed = 33333
                 # self.stream.camera.zoom = (0, 200, 1080, 300)
                 
-                # let camera warm up
-                time.sleep(2.0) 
+
             else:
                 self.log.debug('Web Camera')
                 self.stream = cv2.VideoCapture(0)

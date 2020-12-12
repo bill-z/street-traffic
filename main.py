@@ -43,7 +43,7 @@ def crop (frame):
     # keep the center vertical third of the frame, full width (of 1080x720)
     #TODO define these "better"
     x = 0
-    y = 190
+    y = 108
     w = 640
     h = 70
     # x = 0

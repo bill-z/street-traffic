@@ -26,7 +26,7 @@ class State(Enum):
     DONE = 'done'
 
 # =============================================================================
-class Vehicle (object):
+class Vehicle ():
     def __init__ (self, vehicle_id, direction, rect, start_frame, log):
         self.id = vehicle_id
         self.direction = direction
@@ -71,9 +71,9 @@ class Vehicle (object):
         return distance <= 200
 
     @staticmethod
-    def rects_overlap(a, b):
-        ax, ay, aw, ah = a
-        bx, by, bw, bh = b
+    def rects_overlap_in_x(a, b):
+        ax, _ay, aw, _ah = a
+        bx, _by, bw, _bh = b
         ax2 = ax + aw
         bx2 = bx + bw
 
@@ -129,7 +129,7 @@ class Vehicle (object):
         for i, match in enumerate(matches):
             x, y, w, h = match
 
-            if self.rects_overlap(vrect, match):
+            if self.rects_overlap_in_x(vrect, match):
                 if match_count == 0:
                     new = match
                 else:
@@ -176,7 +176,7 @@ class Vehicle (object):
 
         frames = (frame_number - self.start_frame)
         seconds = frames / fps
-        hours = seconds / SECONDS_PER_MINUTE / MINUTES_PER_HOUR
+        hours = seconds / SECONDS_PER_HOUR
 
         # MPH
         self.mph = 0 if hours == 0 else miles / hours
@@ -187,19 +187,19 @@ class Vehicle (object):
             return
 
         self.state = State.ACTIVE
-        x, y = self.last_position
+        x, _y = self.last_position
         self.speed_start_x = x
         self.speed_start_frame = frame_number
         self.speed_start_time = datetime.now()       
-        r = self.rects[-1]
-        rx1 = r[0]
-        rx2 = rx1 + r[2]
+        #r = self.rects[-1]
+        #rx1 = r[0]
+        #rx2 = rx1 + r[2]
         # self.log.debug('%d [%d] start %d (%d %d)', 
         #     frame_number, self.id, self.speed_start_x, rx1, rx2)
 
     def stop_speed(self, frame_number, fps):
         # distance
-        x, y = self.last_position
+        x, _y = self.last_position
         pixels = abs(x - self.speed_start_x)
         feet = pixels / PIXELS_PER_FOOT
         miles = pixels / PIXELS_PER_MILE
@@ -222,10 +222,10 @@ class Vehicle (object):
             cmph = 0
 
         self.state = State.DONE
- 
-        self.log.debug('%d [%d] %c mph:%2.1f  p:%d (%d->%d), ft:%3.1f m:%1.4f fmph:%2.1f frames:%d fs:%3.2f s:%3.2f h:%1.6f', 
+
+        self.log.debug('%d [%d] %c mph:%2.1f  p:%d (%d->%d), ft:%3.1f m:%1.4f fmph:%2.1f frames:%d fs:%3.2f s:%3.2f h:%1.6f',
             frame_number,
-            self.id, 
+            self.id,
             '>' if self.direction > 0 else '<',
             cmph,
             pixels,
@@ -243,14 +243,14 @@ class Vehicle (object):
         path = []
         for rect in self.rects:
             point = (rect[0], rect[1]+rect[3])
-            path.append(point) 
+            path.append(point)
             cv2.circle(output_image, point, 2, self.color, -1)
         cv2.polylines(output_image, [np.int32(path)], False, self.color, 1)
 
         x, y = self.last_position
-        cv2.putText(output_image, 
+        cv2.putText(output_image,
             ('[%d]' % self.id), (x, y-20), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 255), 1)
-        cv2.putText(output_image, 
+        cv2.putText(output_image,
             ('%3.2f' % self.mph), (x, y+20), cv2.FONT_HERSHEY_PLAIN, 1.0, self.color, 1)
 
         # previous rect
@@ -261,20 +261,20 @@ class Vehicle (object):
         # current rect
         x, y, w, h = self.rects[-1]
         cv2.rectangle(output_image, (x, y), (x+w-1, y+h-1),  NEW_RECT_COLOR)
-           
+          
     def write_log(self, frame_number):
         x, y, w, h = self.rects[-1]
-        dir = ('<' if self.direction < 0 else '>')
-        self.log.debug('%d [%d] %c (%d %d %d %d) mph: %3.2f start: %d since: %d', 
+        direction = ('<' if self.direction < 0 else '>')
+        self.log.debug('%d [%d] %c (%d %d %d %d) mph: %3.2f start: %d since: %d',
             frame_number,
-            self.id, 
-            dir,
+            self.id,
+            direction,
             x, y, w, h,
             self.mph,
             self.start_frame,
             self.frames_since_seen)
 
-    def track(self, matches, frame_number, fps, output_image):
+    def track(self, matches, _frame_number, _fps, output_image):
         matches = self.find_match(matches)
 
         if output_image is not None:
@@ -302,14 +302,14 @@ class Tracker (object):
         self.min_vehicle_width = int(self.width * 0.075)
         self.min_vehicle_height = int(self.height * 0.05)
 
-        self.log.debug('Tracker left:%d right:%d minw:%d minh:%d', 
+        self.log.debug('Tracker left:%d right:%d minw:%d minh:%d',
             self.left_edge, self.right_edge, self.min_vehicle_width, self.min_vehicle_height)
-        
+      
     def track (self, matches, frame_number, resolution, output_image=None):
         # Pair new matches with vehicles
         for vehicle in self.vehicles:
             matches = vehicle.track(matches, frame_number, self.fps, output_image)
-            self.start_stop_speed(frame_number, vehicle);
+            self.start_stop_speed(frame_number, vehicle)
 
         # draw start/stop edge lines
         if output_image is not None:
@@ -323,7 +323,7 @@ class Tracker (object):
 
         if len(self.vehicles) > 0:
             return self.vehicles[-1].id
-        else: 
+        else:
             return 0
 
     def start_stop_speed(self, frame_number, vehicle):
@@ -351,11 +351,11 @@ class Tracker (object):
         for v in self.vehicles:
             dir = v.direction
             x, y, w, h = v.rects[-1]
-            if (v.frames_since_seen >= MAX_UNSEEN_FRAMES):
+            if v.frames_since_seen >= MAX_UNSEEN_FRAMES:
                 removed.append(v)
                 x0, y0, w0, h0 = v.rects[0]
                 if v.state is State.ACTIVE:
-                    self.log.warning('%d [%d] (%d %d)-(%d %d) %d %d', 
+                    self.log.warning('%d [%d] (%d %d)-(%d %d) %d %d',
                         frame_number, v.id, x0, x0+w0, x, x+w,
                         v.frames_since_seen, v.age(frame_number))
 
@@ -382,13 +382,13 @@ class Tracker (object):
 
                 new_vehicle = Vehicle(self.next_vehicle_id, dir, match, frame_number, self.log)
                 matches = new_vehicle.track(matches, frame_number, self.fps, output_image)
-                    
-                # self.log.debug('%d [%d] ADD %c (%d %d %d %d) %d', 
+              
+                # self.log.debug('%d [%d] ADD %c (%d %d %d %d) %d',
                 #     frame_number,
-                #     self.next_vehicle_id, 
+                #     self.next_vehicle_id,
                 #     '>' if dir > 0 else '<',
                 #     x, y, w, h, len(matches))
-                
+
                 # for m in matches:
                 #     x, y, w, h = m
                 #     self.log.debug('(%d %d %d %d)', x, y, w, h)
