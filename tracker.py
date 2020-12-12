@@ -208,7 +208,7 @@ class Vehicle ():
         frames = frame_number - self.speed_start_frame
         frame_secs = frames / fps
         frame_hours = frames / fps / SECONDS_PER_HOUR
-        fmph = miles / frame_hours
+        fmph = miles / frame_hours if frame_hours == 0 else 0
 
         # speed based on clock time
         dt = datetime.now() - self.speed_start_time
