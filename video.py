@@ -4,14 +4,16 @@ import cv2
 from imutils.video import FileVideoStream, VideoStream
 
 class VideoSource (object):
-    def __init__ (self, video_file, log, use_pi_camera = True, resolution=(320, 200), framerate = 30):
+    def __init__ (self, video_file, log, use_pi_camera = True, resolution=(320, 200), framerate = 30, night = False):
         self.filename = video_file
         self.log = log
         self.use_pi_camera  = use_pi_camera
         self.resolution = resolution
         self.framerate = framerate
+        self.night = night
         self.fvs = None
         self.stream = None
+        self._done = False
 
     def start (self):
         if self.filename is not None:
@@ -30,27 +32,25 @@ class VideoSource (object):
                     ).start()
 
                 # let camera warm up
-                time.sleep(2) 
+                time.sleep(2)
 
                 # Now fix the values
                 camera = self.stream.camera
+                # if self.night:
+                #     self.log.debug('Camera: night setting')
+                #     time.sleep(5)
+                #     camera.shutter_speed = 50000
+                #     camera.awb_mode = 'cloudy'
+                #     camera.iso = 800
+                #     camera.exposure_mode = 'night'
+                # else:
                 camera.shutter_speed = camera.exposure_speed
                 camera.exposure_mode = 'off'
-                g = camera.awb_gains
+
+                gains = camera.awb_gains
                 camera.awb_mode = 'off'
-                camera.awb_gains = g
-
-                # camera.shutter_speed = camera.exposure_speed
-                # camera.exposure_mode = 'off'
-                # gains = camera.awb_gains
-                # camera.awb_mode = 'off'
-                # camera.awb_gains = gains
-
-                # night = True
-                # if night:
-                #     self.stream.camera.exposure_mode = 'sports'
-                #     self.stream.camera.shutter_speed = 33333
-                # self.stream.camera.zoom = (0, 200, 1080, 300)
+                camera.awb_gains = gains
+                #camera.zoom = (0, 200, 1080, 300)
                 
 
             else:

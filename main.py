@@ -1,4 +1,3 @@
-
 import os
 import argparse
 from datetime import datetime
@@ -13,7 +12,7 @@ from video import VideoSource
 LOG_TO_FILE = True
 
 IMAGE_DIR = 'images'
-IMAGE_FILENAME_FORMAT = IMAGE_DIR + '/frame_%05d_%04d.png'
+PHOTO_DIR = 'photos'
 
 # Time to wait between frames, 0=forever
 WAIT_TIME = 1 # 250 # ms
@@ -22,9 +21,8 @@ WAIT_TIME = 1 # 250 # ms
 BOUNDING_BOX_COLOR = (255, 0, 0)
 
 # -----------------------------------------------------------------------------
-def save_frame(file_name_format, frame_number, frame, most_recent_vehicle):
-    file_name = file_name_format % (frame_number, most_recent_vehicle)
-    # label = label_format % frame_number
+def save_frame(frame_number, frame, most_recent_vehicle):
+    file_name = '%s/frame_%05d_%04d.png' % (IMAGE_DIR, frame_number, most_recent_vehicle)
 
     # draw the timestamp on the frame
     timestamp = datetime.now()
@@ -36,35 +34,82 @@ def save_frame(file_name_format, frame_number, frame, most_recent_vehicle):
     cv2.imwrite(file_name, frame)
 
 # -----------------------------------------------------------------------------
-# Remove cropped regions from frame
+def save_vehicle_photo (vehicle):
+    'Add speed to photo and save it to a file'
+
+    if vehicle.photo is None:
+        log.debug('no photo %d' % vehicle.id)
+        return
+
+    RED = (20, 20, 255)
+    BLACK = (10, 10, 10)
+    SPEED_LIMIT = 25
+
+    photo = vehicle.photo
+
+    # add date and time to photo
+    now = datetime.now()
+    text = now.strftime('%a %b %d %Y %H:%M')
+    position = (5, 10)
+    scale = 0.25
+    color = BLACK
+    thickness = 1
+    cv2.putText(photo, text, position, cv2.FONT_HERSHEY_SIMPLEX, scale, color, thickness)
+
+    # add speed to photo
+    text = '%2.1f' % (vehicle.mph)
+    position = (10, 35)
+    scale = 0.75
+    color = RED if vehicle.mph > SPEED_LIMIT else BLACK
+    thickness = 2
+    cv2.putText(photo, text, position, cv2.FONT_HERSHEY_SIMPLEX, scale, color, thickness)
+
+    # embed data in photo filename
+    time = now.strftime('%Y:%m:%d:%H:%M:%S')
+    speed = vehicle.mph
+    direction = 'S' if vehicle.direction > 0 else 'N'  # TODO: make configurable
+    vehicle_type = 'V' # for now - more to be defined in future
+    file_name = '%s/%s_%2.1f_%c_%c_%d_%d.png' % (
+        PHOTO_DIR, time, speed, direction, vehicle_type, vehicle.center_frame, vehicle.id)
+
+    # log.debug("Saving %s as '%s'", label, file_name)
+    cv2.imwrite(file_name, photo)
+
+      
+# -----------------------------------------------------------------------------
 def crop (frame):
-    #frame = imutils.resize(frame, width=1280)
-    
+    'Crop to region of interest'
+
     # keep the center vertical third of the frame, full width (of 1080x720)
-    #TODO define these "better"
+    # TODO define these "better"
     x = 0
     y = 108
     w = 640
     h = 70
-    # x = 0
-    # y = 320
-    # w = 1080
-    # h = 240
 
     return (frame[y:y+h, x:x+w] if frame is not None else None)
+
+# -----------------------------------------------------------------------------
+def get_vehicle_photo (frame):
+    'Save center third of frame image as vehicle photo'
+    h, w, _c = frame.shape
+    new_x = round(w / 3)
+    new_w = round(w / 3)
+    return (frame[0:h, new_x:new_x+new_w]).copy() if frame is not None else None
 
 # -----------------------------------------------------------------------------
 def main ():
     resolution = (640, 360)
     framerate = 32
 
-    video = VideoSource(video_file, log, use_pi_camera=use_pi_camera, resolution=resolution, framerate = framerate)
-    (width, height), framerate = video.start()
+    video = VideoSource(
+        VIDEO_FILE, log, use_pi_camera=use_pi_camera, resolution=resolution, 
+        framerate=framerate, night=use_night_mode
+    )
+
+    (_width, _height), framerate = video.start()
 
     initial_bg = video.read()
-    # initial_bg = imutils.resize(frame, width=400)
-
-    # video_out = DebugVideo(width, 480, fps, log)
 
     detector = Detector(initial_bg, log)
 
@@ -72,40 +117,42 @@ def main ():
 
     frame_number = 0
     overall_start_time = datetime.now()
-    expected_frame_time_ms = 1000 // framerate # millisecs
 
-    while (not video.done()):
-        frame_start_time = datetime.now()
+    while not video.done():
         frame = video.read()
         if frame is None:
             continue
- 
+
         frame_number += 1
 
         # crop to region of interest
-        cropped = crop(frame)
+        cropped_frame = crop(frame)
 
-        matches, mask = detector.detect(cropped)
+        matches, mask = detector.detect(cropped_frame)
 
         # mask = detector.draw_matches(matches, mask)
 
-        # trackedObjectCount = tracker.track(matches, frame_number, resolution, cropped)
-        most_recent_vehicle = tracker.track(matches, frame_number, resolution, cropped)
+        vehicles = tracker.track(matches, frame_number, resolution, cropped_frame)
 
-        result = cv2.vconcat([cropped, cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)])
+        result = cv2.vconcat([cropped_frame, cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)])
         cv2.imshow('Traffic', result)
 
-        # video_out.write(result)
+        # if len(vehicles) > 0:
+        #     save_frame(frame_number, result, vehicles[-1].id)
 
-        if most_recent_vehicle > 0:
-            save_frame(IMAGE_FILENAME_FORMAT, frame_number, result, most_recent_vehicle)
+        for vehicle in vehicles:
+            if vehicle.center_frame == frame_number:
+                log.debug('get photo %d f#%d' % (vehicle.id, frame_number))
+                vehicle.photo = get_vehicle_photo(cropped_frame)
 
-        # what time is left in the frame?
-        frametime = datetime.now() - frame_start_time # micro
-        remaining_frame_time_ms = expected_frame_time_ms - frametime.microseconds // 1000 # milli
-        # log.debug('%d', remaining_frame_time_ms)
+            if vehicle.done_frame == frame_number:
+                if vehicle.center_frame:
+                    if vehicle.mph > 0:
+                        log.debug('save photo %d %d #f%d' % (vehicle.id, vehicle.center_frame, frame_number))
+                        save_vehicle_photo(vehicle)
+                else:
+                    log.debug('no center frame %d #f%d' % (vehicle.id, frame_number))
 
-        # key = cv2.waitKey(max(remaining_frame_time_ms, 1))
         key = cv2.waitKey(1)
         if key == ord('q') or key == 27:
             log.debug('ESC or q key, stopping...')
@@ -114,7 +161,7 @@ def main ():
     log.debug('Closing video source...')
     video.stop()
 
-    # display overall fps      
+    # display overall fps
     elapsed_time = (datetime.now() - overall_start_time).total_seconds()
     fps = frame_number / elapsed_time
     log.debug('fps: %3.4f (%d / %f)', fps, frame_number, elapsed_time)
@@ -125,23 +172,36 @@ def main ():
 
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
+    logger = Log(LOG_TO_FILE)
+    log = logger.getLog()
+
     # construct the argument parser and parse the arguments
     ap = argparse.ArgumentParser()
     ap.add_argument('-p', '--picamera', type=int, default=-1,
-        help='whether or not the Raspberry Pi camera should be used')
+        help='whether or not the Raspberry Pi camera should be used')  
+    ap.add_argument('-n', '--night', type=int, default=-1,
+        help='1 for night mode')
     args = vars(ap.parse_args())
+
     use_pi_camera = args['picamera'] > 0
+    if use_pi_camera:
+        log.debug('Using PI Camera')
+
+    use_night_mode = args['night'] > 0
+    if use_night_mode:
+        log.debug('Using night mode')
 
     if use_pi_camera:
-        video_file = None
+        VIDEO_FILE = None
     else:
-        video_file = 'video/testvideo2.mp4'
-
-    log = Log(LOG_TO_FILE)
-    log = log.getLog()
+        VIDEO_FILE = 'video/testvideo2.mp4'
 
     if not os.path.exists(IMAGE_DIR):
         log.debug('Creating image directory `%s`...', IMAGE_DIR)
         os.makedirs(IMAGE_DIR)
+
+    if not os.path.exists(PHOTO_DIR):
+        log.debug('Creating photo directory `%s`...', PHOTO_DIR)
+        os.makedirs(PHOTO_DIR)
 
     main()
