@@ -32,10 +32,11 @@ class VideoSource (object):
                     ).start()
 
                 # let camera warm up
-                time.sleep(2)
+                # time.sleep(2)
 
                 # Now fix the values
-                camera = self.stream.camera
+                # camera = self.stream.camera
+
                 # if self.night:
                 #     self.log.debug('Camera: night setting')
                 #     time.sleep(5)
@@ -44,20 +45,27 @@ class VideoSource (object):
                 #     camera.iso = 800
                 #     camera.exposure_mode = 'night'
                 # else:
-                camera.shutter_speed = camera.exposure_speed
-                camera.exposure_mode = 'off'
 
-                gains = camera.awb_gains
-                camera.awb_mode = 'off'
-                camera.awb_gains = gains
+                # // latest
+                # camera.shutter_speed = camera.exposure_speed
+                # camera.exposure_mode = 'off'
+
+                # gains = camera.awb_gains
+                # camera.awb_mode = 'off'
+                # camera.awb_gains = gains
+                # // end latest
+
                 #camera.zoom = (0, 200, 1080, 300)
-                
+
 
             else:
                 self.log.debug('Web Camera')
                 self.stream = cv2.VideoCapture(0)
                 self.stream.set(cv2.CAP_PROP_BUFFERSIZE, 2)
-                self.resolution = (self.stream.get(cv2.CAP_PROP_FRAME_WIDTH), self.stream.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                self.resolution = (
+                    self.stream.get(cv2.CAP_PROP_FRAME_WIDTH),
+                    self.stream.get(cv2.CAP_PROP_FRAME_HEIGHT)
+                )
                 self.framerate = self.stream.get(cv2.CAP_PROP_FPS)
 
         return self.resolution, self.framerate
