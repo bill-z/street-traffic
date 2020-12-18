@@ -31,33 +31,6 @@ class VideoSource (object):
                     sensor_mode=5
                     ).start()
 
-                # let camera warm up
-                # time.sleep(2)
-
-                # Now fix the values
-                # camera = self.stream.camera
-
-                # if self.night:
-                #     self.log.debug('Camera: night setting')
-                #     time.sleep(5)
-                #     camera.shutter_speed = 50000
-                #     camera.awb_mode = 'cloudy'
-                #     camera.iso = 800
-                #     camera.exposure_mode = 'night'
-                # else:
-
-                # // latest
-                # camera.shutter_speed = camera.exposure_speed
-                # camera.exposure_mode = 'off'
-
-                # gains = camera.awb_gains
-                # camera.awb_mode = 'off'
-                # camera.awb_gains = gains
-                # // end latest
-
-                #camera.zoom = (0, 200, 1080, 300)
-
-
             else:
                 self.log.debug('Web Camera')
                 self.stream = cv2.VideoCapture(0)
