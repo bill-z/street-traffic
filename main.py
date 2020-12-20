@@ -65,7 +65,7 @@ def save_vehicle_photo (vehicle):
     cv2.putText(photo, text, position, cv2.FONT_HERSHEY_SIMPLEX, scale, color, thickness)
 
     # embed data in photo filename
-    time = now.strftime('%Y:%m:%d:%H:%M:%S')
+    time = now.strftime('%Y-%m-%d-%H-%M-%S')
     speed = vehicle.mph
     direction = 'S' if vehicle.direction > 0 else 'N'  # TODO: make configurable
     vehicle_type = 'V' # for now - more to be defined in future
@@ -123,7 +123,10 @@ def main ():
         if frame is None:
             continue
 
-        frame_number += 1
+        if frame_number < 1000000: # arbitrary maximum
+            frame_number += 1
+        else:
+            frame_number = 0
 
         # crop to region of interest
         cropped_frame = crop(frame)
