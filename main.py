@@ -14,14 +14,30 @@ LOG_TO_FILE = True
 IMAGE_DIR = 'images'
 PHOTO_DIR = 'photos'
 
+# (arbitrary) maximum value used before wrapping to zero 
+MAX_FRAME_NUMBER = 1000000
+
 # Time to wait between frames, 0=forever
 WAIT_TIME = 1 # 250 # ms
 
-# Colours for drawing on processed frames
+# Colors for drawing on processed frames
 BOUNDING_BOX_COLOR = (255, 0, 0)
+RED = (20, 20, 255)
+BLACK = (10, 10, 10)
+
+SPEED_LIMIT = 25
+
+VIDEO_RESOLUTION = (640, 360)
+VIDEO_FRAME_RATE = 30
+
+# Define an area of the video frame to be observed. 
+#  Keep the center vertical ~third of the frame, and the full width.
+#  (x, y, w, h)
+AREA_OF_INTEREST = (0, 108, 640, 70)
 
 # -----------------------------------------------------------------------------
 def save_frame(frame_number, frame, most_recent_vehicle):
+    'Save a video frame to an image file'
     file_name = '%s/frame_%05d_%04d.png' % (IMAGE_DIR, frame_number, most_recent_vehicle)
 
     # draw the timestamp on the frame
@@ -35,19 +51,22 @@ def save_frame(frame_number, frame, most_recent_vehicle):
 
 # -----------------------------------------------------------------------------
 def save_vehicle_photo (vehicle):
-    'Add speed to photo and save it to a file'
+    'Save vehicle photo (with vehicle data) to an image file'
 
     if vehicle.photo is None:
         log.debug('no photo %d' % vehicle.id)
         return
 
-    RED = (20, 20, 255)
-    BLACK = (10, 10, 10)
-    SPEED_LIMIT = 25
+    if vehicle.mph <= 0:
+        log.debug('vehicle speed (%2.1f) <= 0 %d' % vehicle.id, vehicle.mph)
+        # TODO: save photo to errors/debug folder
+        return
+
+    log.debug('save photo %d %d' % (vehicle.id, vehicle.center_frame))
 
     photo = vehicle.photo
 
-    # add date and time to photo
+    # draw date and time on photo image
     now = datetime.now()
     text = now.strftime('%a %b %d %Y %H:%M')
     position = (5, 10)
@@ -56,7 +75,7 @@ def save_vehicle_photo (vehicle):
     thickness = 1
     cv2.putText(photo, text, position, cv2.FONT_HERSHEY_SIMPLEX, scale, color, thickness)
 
-    # add speed to photo
+    # draw speed on photo image
     text = '%2.1f' % (vehicle.mph)
     position = (10, 35)
     scale = 0.75
@@ -78,15 +97,8 @@ def save_vehicle_photo (vehicle):
       
 # -----------------------------------------------------------------------------
 def crop (frame):
-    'Crop to region of interest'
-
-    # keep the center vertical third of the frame, full width (of 1080x720)
-    # TODO define these "better"
-    x = 0
-    y = 108
-    w = 640
-    h = 70
-
+    'Crop to frame region of interest'
+    x, y, w, h = AREA_OF_INTEREST
     return (frame[y:y+h, x:x+w] if frame is not None else None)
 
 # -----------------------------------------------------------------------------
@@ -99,18 +111,18 @@ def get_vehicle_photo (frame):
 
 # -----------------------------------------------------------------------------
 def main ():
-    resolution = (640, 360)
-    framerate = 32
+    'Street Traffic monitor application'
+
+    resolution = VIDEO_RESOLUTION
+    framerate = VIDEO_FRAME_RATE
 
     video = VideoSource(
         VIDEO_FILE, log, use_pi_camera=use_pi_camera, resolution=resolution, 
         framerate=framerate, night=use_night_mode
     )
-
     (_width, _height), framerate = video.start()
 
     initial_bg = video.read()
-
     detector = Detector(initial_bg, log)
 
     tracker = Tracker(resolution, framerate, log)
@@ -123,36 +135,32 @@ def main ():
         if frame is None:
             continue
 
-        if frame_number < 1000000: # arbitrary maximum
-            frame_number += 1
-        else:
-            frame_number = 0
+        frame_number = frame_number + 1 if frame_number < MAX_FRAME_NUMBER else 0
 
-        # crop to region of interest
+        # Crop frame to region of interest
         cropped_frame = crop(frame)
 
+        # Detect moving vehicle-like objects
         matches, mask = detector.detect(cropped_frame)
-
-        # mask = detector.draw_matches(matches, mask)
-
+        
+        # Track moving objects over time
         vehicles = tracker.track(matches, frame_number, resolution, cropped_frame)
 
+        # Display current video frame and resulting object mask image stacked vertically.
         result = cv2.vconcat([cropped_frame, cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)])
         cv2.imshow('Traffic', result)
 
-        # if len(vehicles) > 0:
-        #     save_frame(frame_number, result, vehicles[-1].id)
-
         for vehicle in vehicles:
+
             if vehicle.center_frame == frame_number:
+                # Tracked vehicle is in center of frame, extract a photo
                 log.debug('get photo %d f#%d' % (vehicle.id, frame_number))
                 vehicle.photo = get_vehicle_photo(cropped_frame)
 
             if vehicle.done_frame == frame_number:
                 if vehicle.center_frame:
-                    if vehicle.mph > 0:
-                        log.debug('save photo %d %d #f%d' % (vehicle.id, vehicle.center_frame, frame_number))
-                        save_vehicle_photo(vehicle)
+                    # If a center photo was 'taken', save it
+                    save_vehicle_photo(vehicle)
                 else:
                     log.debug('no center frame %d #f%d' % (vehicle.id, frame_number))
 
