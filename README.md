@@ -9,8 +9,8 @@ The speed calculation is based on distance and time. It appears to be reasonably
 
 Here are a couple of known issues / future todos:
 
-1) tracking can get confused when vehicles pass each other from opposite directions.
-2) it is unreliable once the sun sets. 
-*I have not yet investigated modifying the approach to work at night. 
-*(could detect lights, but headlight beams, etc.)
-3) At dusk and when darkly cloudly, it sometimes has difficulty tracking (asphalt-)gray colored vehicles.
+1. Tracking can get confused when vehicles pass each other from opposite directions.
+2. Detection and tracking are unreliable once the sun sets. 
+    - Could investigate modifying the approach to work at night. 
+    - Could detect lights, but... headlight beams, etc.
+3. At dusk and when darkly cloudly, it sometimes has difficulty detecting (asphalt-)gray colored vehicles.
