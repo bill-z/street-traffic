@@ -84,7 +84,9 @@ def save_vehicle_photo (vehicle):
     cv2.putText(photo, text, position, cv2.FONT_HERSHEY_SIMPLEX, scale, color, thickness)
 
     # embed data in photo filename
-    time = now.strftime('%Y-%m-%d-%H-%M-%S')
+    # use utc time
+    utcnow = datetime.utcnow()
+    time = utcnow.strftime('%Y-%m-%d-%H-%M-%S')
     speed = vehicle.mph
     direction = 'S' if vehicle.direction > 0 else 'N'  # TODO: make configurable
     vehicle_type = 'V' # for now - more to be defined in future
