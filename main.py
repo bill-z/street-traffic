@@ -58,7 +58,7 @@ def save_vehicle_photo (vehicle):
         return
 
     if vehicle.mph <= 0:
-        log.debug('vehicle speed (%2.1f) <= 0 %d' % vehicle.id, vehicle.mph)
+        log.debug('vehicle (%d) speed (%2.1f) <= 0' % (vehicle.id, vehicle.mph))
         # TODO: save photo to errors/debug folder
         return
 
