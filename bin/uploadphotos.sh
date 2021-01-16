@@ -4,11 +4,12 @@
 # After uploading move images from photos to uploaded. 
 # (for use on raspberry pi -- assumes AWS CLI installed and configured)
 
-PROJECT_DIR=$HOME/Projects/street-traffic
+PROJECT_DIR=/home/pi/Projects/street-traffic
 BUCKET_NAME=speed-data-images211101-dev
 AWS_PROFILE=traffic
+AWS=/home/pi/.local/bin/aws
 
-aws s3 cp\
+$AWS s3 cp\
  --recursive\
  --profile $AWS_PROFILE\
  $PROJECT_DIR/photos\
