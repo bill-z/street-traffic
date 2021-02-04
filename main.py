@@ -62,7 +62,7 @@ def save_vehicle_photo (vehicle):
         # TODO: save photo to errors/debug folder
         return
 
-    log.debug('save photo %d %d' % (vehicle.id, vehicle.center_frame))
+    # log.debug('save photo %d %d' % (vehicle.id, vehicle.center_frame))
 
     photo = vehicle.photo
 
@@ -156,7 +156,7 @@ def main ():
 
             if vehicle.center_frame == frame_number:
                 # Tracked vehicle is in center of frame, extract a photo
-                log.debug('get photo %d f#%d' % (vehicle.id, frame_number))
+                # log.debug('get photo %d f#%d' % (vehicle.id, frame_number))
                 vehicle.photo = get_vehicle_photo(cropped_frame)
 
             if vehicle.done_frame == frame_number:
@@ -191,7 +191,7 @@ if __name__ == '__main__':
     # construct the argument parser and parse the arguments
     ap = argparse.ArgumentParser()
     ap.add_argument('-p', '--picamera', type=int, default=-1,
-        help='whether or not the Raspberry Pi camera should be used')  
+        help='1 to use the Raspberry Pi camera')  
     ap.add_argument('-n', '--night', type=int, default=-1,
         help='1 for night mode')
     args = vars(ap.parse_args())
